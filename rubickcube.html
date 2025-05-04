@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3x3 Rubik's Cube - Keyboard Moves</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Apply border-box sizing globally */
+        *, *::before, *::after {
+            box-sizing: border-box;
+        }
+
+        /* Basic styling for the body */
+        body {
+            display: flex;
+            flex-direction: column; /* Stack cube and controls vertically */
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #e5e7eb; /* Lighter gray background */
+            overflow: hidden; /* Prevent scrollbars */
+            font-family: 'Inter', sans-serif;
+            padding-top: 20px; /* Add some space at the top */
+            position: relative; /* Needed for info text positioning */
+        }
+
+        /* Container for the 3D scene */
+        .scene {
+            width: 200px; /* Cube size */
+            height: 200px;
+            perspective: 800px;
+            margin-bottom: 20px; /* Space between cube and controls */
+        }
+
+        /* The cube itself */
+        .cube {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transform: rotateX(-30deg) rotateY(-45deg);
+            transition: transform 0.1s linear;
+            cursor: grab; /* Indicate draggable for whole cube rotation */
+        }
+
+        /* --- Cube Face Styling --- */
+        .cube-face {
+            position: absolute;
+            width: 200px;
+            height: 200px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 5px;
+            padding: 5px;
+            background-color: #1f2937; /* Dark gray background for gaps */
+            border-radius: 8px;
+            opacity: 0.95;
+            backface-visibility: hidden;
+        }
+
+        /* --- Cubie (Sticker) Styling --- */
+        .cubie {
+            width: 100%;
+            height: 100%;
+            background-color: #9ca3af; /* Default gray - colors set by JS */
+            border-radius: 4px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        /* --- Face Positioning Transforms --- */
+        .front  { transform: translateZ(100px); }
+        .back   { transform: rotateY(180deg) translateZ(100px); }
+        .right  { transform: rotateY(90deg) translateZ(100px); }
+        .left   { transform: rotateY(-90deg) translateZ(100px); }
+        .top    { transform: rotateX(90deg) translateZ(100px); }
+        .bottom { transform: rotateX(-90deg) translateZ(100px); }
+
+        /* --- Controls Styling --- */
+        .controls {
+            display: flex;
+            flex-wrap: wrap; /* Allow buttons to wrap */
+            justify-content: center; /* Center buttons */
+            gap: 10px; /* Space between buttons */
+            margin-bottom: 15px; /* Space below buttons */
+            max-width: 90%; /* Prevent controls from being too wide */
+        }
+
+        .control-button {
+            padding: 6px 12px; /* Slightly smaller buttons */
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: white;
+            background-color: #3b82f6; /* Blue */
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .control-button:hover {
+            background-color: #2563eb; /* Darker blue on hover */
+        }
+         .control-button:active {
+            background-color: #1d4ed8; /* Even darker blue when active */
+             transform: translateY(1px); /* Slight press effect */
+        }
+
+        /* Info Text Styling */
+        .info-text {
+             position: absolute;
+             bottom: 10px; /* Position at the bottom */
+             left: 50%;
+             transform: translateX(-50%);
+             font-size: 0.85rem;
+             color: #4b5563; /* Gray text */
+             text-align: center;
+         }
+
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body class="bg-gray-200">
+
+    <div class="scene">
+        <div class="cube">
+            <div class="cube-face front"></div>
+            <div class="cube-face back"></div>
+            <div class="cube-face right"></div>
+            <div class="cube-face left"></div>
+            <div class="cube-face top"></div>
+            <div class="cube-face bottom"></div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button id="rotateF" class="control-button">F</button>
+        <button id="rotateFPrime" class="control-button">F'</button>
+        <button id="rotateU" class="control-button">U</button>
+        <button id="rotateUPrime" class="control-button">U'</button>
+        <button id="rotateD" class="control-button">D</button>
+        <button id="rotateDPrime" class="control-button">D'</button>
+        <button id="rotateL" class="control-button">L</button>
+        <button id="rotateLPrime" class="control-button">L'</button>
+        <button id="rotateR" class="control-button">R</button>
+        <button id="rotateRPrime" class="control-button">R'</button>
+         <button id="rotateB" class="control-button">B</button>
+        <button id="rotateBPrime" class="control-button">B'</button>
+        </div>
+
+     <div class="info-text">
+        Use Arrow Keys (and Shift + Arrow Keys) to rotate U/D/L/R faces. <br> Click & Drag cube to rotate view. Use buttons for F/B moves.
+    </div>
+
+
+    <script>
+        const cubeElement = document.querySelector('.cube');
+        const body = document.body;
+        const faces = ['front', 'back', 'left', 'right', 'top', 'bottom'];
+        const faceElements = {}; // To store references to face DOM elements
+
+        // --- Color Definitions ---
+        const colors = {
+            R: '#dc2626', // Red
+            O: '#f97316', // Orange
+            G: '#16a34a', // Green
+            B: '#2563eb', // Blue
+            W: '#ffffff', // White
+            Y: '#eab308'  // Yellow
+        };
+
+        // --- Cube State Representation ---
+        let cubeState = {
+            front:  [['G', 'G', 'G'], ['G', 'G', 'G'], ['G', 'G', 'G']], // Green
+            back:   [['B', 'B', 'B'], ['B', 'B', 'B'], ['B', 'B', 'B']], // Blue
+            left:   [['O', 'O', 'O'], ['O', 'O', 'O'], ['O', 'O', 'O']], // Orange
+            right:  [['R', 'R', 'R'], ['R', 'R', 'R'], ['R', 'R', 'R']], // Red
+            top:    [['W', 'W', 'W'], ['W', 'W', 'W'], ['W', 'W', 'W']], // White
+            bottom: [['Y', 'Y', 'Y'], ['Y', 'Y', 'Y'], ['Y', 'Y', 'Y']]  // Yellow
+        };
+
+        // --- Helper Functions ---
+
+        function getCubieElement(face, row, col) {
+            const faceEl = faceElements[face];
+            if (!faceEl) return null;
+            const index = row * 3 + col;
+            return faceEl.children[index];
+        }
+
+        function updateVisuals() {
+            for (const face of faces) {
+                for (let row = 0; row < 3; row++) {
+                    for (let col = 0; col < 3; col++) {
+                        const cubie = getCubieElement(face, row, col);
+                        if (cubie) {
+                            const colorKey = cubeState[face][row][col];
+                            cubie.style.backgroundColor = colors[colorKey] || '#9ca3af';
+                        }
+                    }
+                }
+            }
+        }
+
+        function rotateFaceCW(faceState) {
+            const N = 3;
+            let newState = Array(N).fill(0).map(() => Array(N).fill(0));
+            for (let i = 0; i < N; i++) {
+                for (let j = 0; j < N; j++) {
+                    newState[j][N - 1 - i] = faceState[i][j];
+                }
+            }
+            return newState;
+        }
+
+        function rotateFaceCCW(faceState) {
+            let newState = rotateFaceCW(faceState);
+            newState = rotateFaceCW(newState);
+            newState = rotateFaceCW(newState);
+            return newState;
+        }
+
+        // --- Move Functions ---
+
+        // F: Rotate Front face clockwise
+        function rotateF() {
+            console.log("Rotating F");
+            cubeState.front = rotateFaceCW(cubeState.front);
+            const temp = [...cubeState.top[2]]; // Store copy of top face's bottom row
+            // Left col 2 -> Top row 2
+            cubeState.top[2][0] = cubeState.left[2][2];
+            cubeState.top[2][1] = cubeState.left[1][2];
+            cubeState.top[2][2] = cubeState.left[0][2];
+            // Bottom row 0 -> Left col 2
+            cubeState.left[0][2] = cubeState.bottom[0][0];
+            cubeState.left[1][2] = cubeState.bottom[0][1];
+            cubeState.left[2][2] = cubeState.bottom[0][2];
+            // Right col 0 -> Bottom row 0
+            cubeState.bottom[0][0] = cubeState.right[2][0];
+            cubeState.bottom[0][1] = cubeState.right[1][0];
+            cubeState.bottom[0][2] = cubeState.right[0][0];
+            // Temp (Original Top row 2) -> Right col 0
+            cubeState.right[0][0] = temp[0];
+            cubeState.right[1][0] = temp[1];
+            cubeState.right[2][0] = temp[2];
+            updateVisuals();
+        }
+
+        // F': Rotate Front face counter-clockwise
+        function rotateFPrime() {
+            console.log("Rotating F Prime");
+            cubeState.front = rotateFaceCCW(cubeState.front);
+            const temp = [...cubeState.top[2]]; // Store copy of top face's bottom row
+            // Right col 0 -> Top row 2
+            cubeState.top[2][0] = cubeState.right[0][0];
+            cubeState.top[2][1] = cubeState.right[1][0];
+            cubeState.top[2][2] = cubeState.right[2][0];
+            // Bottom row 0 -> Right col 0
+            cubeState.right[0][0] = cubeState.bottom[0][2];
+            cubeState.right[1][0] = cubeState.bottom[0][1];
+            cubeState.right[2][0] = cubeState.bottom[0][0];
+            // Left col 2 -> Bottom row 0
+            cubeState.bottom[0][0] = cubeState.left[0][2];
+            cubeState.bottom[0][1] = cubeState.left[1][2];
+            cubeState.bottom[0][2] = cubeState.left[2][2];
+            // Temp (Original Top row 2) -> Left col 2
+            cubeState.left[0][2] = temp[2];
+            cubeState.left[1][2] = temp[1];
+            cubeState.left[2][2] = temp[0];
+            updateVisuals();
+        }
+
+        // U: Rotate Up face clockwise
+        function rotateU() {
+            console.log("Rotating U");
+            cubeState.top = rotateFaceCW(cubeState.top);
+            const temp = [...cubeState.front[0]]; // Store copy of front face's top row
+            cubeState.front[0] = [...cubeState.right[0]];
+            cubeState.right[0] = [...cubeState.back[0]];
+            cubeState.back[0] = [...cubeState.left[0]];
+            cubeState.left[0] = temp;
+            updateVisuals();
+        }
+
+        // U': Rotate Up face counter-clockwise
+        function rotateUPrime() {
+            console.log("Rotating U Prime");
+            cubeState.top = rotateFaceCCW(cubeState.top);
+            const temp = [...cubeState.front[0]]; // Store copy of front face's top row
+            cubeState.front[0] = [...cubeState.left[0]];
+            cubeState.left[0] = [...cubeState.back[0]];
+            cubeState.back[0] = [...cubeState.right[0]];
+            cubeState.right[0] = temp;
+            updateVisuals();
+        }
+
+        // D: Rotate Down face clockwise
+        function rotateD() {
+            console.log("Rotating D");
+            cubeState.bottom = rotateFaceCW(cubeState.bottom);
+            const temp = [...cubeState.front[2]]; // Store copy of front face's bottom row
+            cubeState.front[2] = [...cubeState.left[2]];
+            cubeState.left[2] = [...cubeState.back[2]];
+            cubeState.back[2] = [...cubeState.right[2]];
+            cubeState.right[2] = temp;
+            updateVisuals();
+        }
+
+        // D': Rotate Down face counter-clockwise
+        function rotateDPrime() {
+            console.log("Rotating D Prime");
+            cubeState.bottom = rotateFaceCCW(cubeState.bottom);
+            const temp = [...cubeState.front[2]]; // Store copy of front face's bottom row
+            cubeState.front[2] = [...cubeState.right[2]];
+            cubeState.right[2] = [...cubeState.back[2]];
+            cubeState.back[2] = [...cubeState.left[2]];
+            cubeState.left[2] = temp;
+            updateVisuals();
+        }
+
+        // L: Rotate Left face clockwise
+        function rotateL() {
+            console.log("Rotating L");
+            cubeState.left = rotateFaceCW(cubeState.left);
+            const tempCol = [cubeState.front[0][0], cubeState.front[1][0], cubeState.front[2][0]]; // Store copy of front face's left column
+            // Top col 0 -> Front col 0
+            cubeState.front[0][0] = cubeState.top[0][0];
+            cubeState.front[1][0] = cubeState.top[1][0];
+            cubeState.front[2][0] = cubeState.top[2][0];
+            // Back col 2 (reversed) -> Top col 0
+            cubeState.top[0][0] = cubeState.back[2][2];
+            cubeState.top[1][0] = cubeState.back[1][2];
+            cubeState.top[2][0] = cubeState.back[0][2];
+            // Bottom col 0 -> Back col 2 (reversed)
+            cubeState.back[0][2] = cubeState.bottom[2][0];
+            cubeState.back[1][2] = cubeState.bottom[1][0];
+            cubeState.back[2][2] = cubeState.bottom[0][0];
+             // Temp (Front col 0) -> Bottom col 0
+            cubeState.bottom[0][0] = tempCol[0];
+            cubeState.bottom[1][0] = tempCol[1];
+            cubeState.bottom[2][0] = tempCol[2];
+            updateVisuals();
+        }
+
+        // L': Rotate Left face counter-clockwise
+        function rotateLPrime() {
+            console.log("Rotating L Prime");
+            cubeState.left = rotateFaceCCW(cubeState.left);
+            const tempCol = [cubeState.front[0][0], cubeState.front[1][0], cubeState.front[2][0]]; // Store copy of front face's left column
+            // Bottom col 0 -> Front col 0
+            cubeState.front[0][0] = cubeState.bottom[0][0];
+            cubeState.front[1][0] = cubeState.bottom[1][0];
+            cubeState.front[2][0] = cubeState.bottom[2][0];
+            // Back col 2 (reversed) -> Bottom col 0
+            cubeState.bottom[0][0] = cubeState.back[2][2];
+            cubeState.bottom[1][0] = cubeState.back[1][2];
+            cubeState.bottom[2][0] = cubeState.back[0][2];
+            // Top col 0 -> Back col 2 (reversed)
+            cubeState.back[0][2] = cubeState.top[2][0];
+            cubeState.back[1][2] = cubeState.top[1][0];
+            cubeState.back[2][2] = cubeState.top[0][0];
+            // Temp (Front col 0) -> Top col 0
+            cubeState.top[0][0] = tempCol[0];
+            cubeState.top[1][0] = tempCol[1];
+            cubeState.top[2][0] = tempCol[2];
+            updateVisuals();
+        }
+
+        // R: Rotate Right face clockwise
+        function rotateR() {
+            console.log("Rotating R");
+            cubeState.right = rotateFaceCW(cubeState.right);
+            const tempCol = [cubeState.front[0][2], cubeState.front[1][2], cubeState.front[2][2]]; // Store copy of front face's right column
+            // Bottom col 2 -> Front col 2
+            cubeState.front[0][2] = cubeState.bottom[0][2];
+            cubeState.front[1][2] = cubeState.bottom[1][2];
+            cubeState.front[2][2] = cubeState.bottom[2][2];
+            // Back col 0 (reversed) -> Bottom col 2
+            cubeState.bottom[0][2] = cubeState.back[2][0];
+            cubeState.bottom[1][2] = cubeState.back[1][0];
+            cubeState.bottom[2][2] = cubeState.back[0][0];
+             // Top col 2 -> Back col 0 (reversed)
+            cubeState.back[0][0] = cubeState.top[2][2];
+            cubeState.back[1][0] = cubeState.top[1][2];
+            cubeState.back[2][0] = cubeState.top[0][2];
+            // Temp (Front col 2) -> Top col 2
+            cubeState.top[0][2] = tempCol[0];
+            cubeState.top[1][2] = tempCol[1];
+            cubeState.top[2][2] = tempCol[2];
+            updateVisuals();
+        }
+
+        // R': Rotate Right face counter-clockwise
+        function rotateRPrime() {
+             console.log("Rotating R Prime");
+            cubeState.right = rotateFaceCCW(cubeState.right);
+            const tempCol = [cubeState.front[0][2], cubeState.front[1][2], cubeState.front[2][2]]; // Store copy of front face's right column
+            // Top col 2 -> Front col 2
+            cubeState.front[0][2] = cubeState.top[0][2];
+            cubeState.front[1][2] = cubeState.top[1][2];
+            cubeState.front[2][2] = cubeState.top[2][2];
+            // Back col 0 (reversed) -> Top col 2
+            cubeState.top[0][2] = cubeState.back[2][0];
+            cubeState.top[1][2] = cubeState.back[1][0];
+            cubeState.top[2][2] = cubeState.back[0][0];
+            // Bottom col 2 -> Back col 0 (reversed)
+            cubeState.back[0][0] = cubeState.bottom[2][2];
+            cubeState.back[1][0] = cubeState.bottom[1][2];
+            cubeState.back[2][0] = cubeState.bottom[0][2];
+            // Temp (Front col 2) -> Bottom col 2
+            cubeState.bottom[0][2] = tempCol[0];
+            cubeState.bottom[1][2] = tempCol[1];
+            cubeState.bottom[2][2] = tempCol[2];
+            updateVisuals();
+        }
+
+        // B: Rotate Back face clockwise
+        function rotateB() {
+            console.log("Rotating B");
+            cubeState.back = rotateFaceCW(cubeState.back);
+            const temp = [...cubeState.top[0]]; // Store copy of top face's top row
+            // Right col 2 -> Top row 0
+            cubeState.top[0][0] = cubeState.right[0][2];
+            cubeState.top[0][1] = cubeState.right[1][2];
+            cubeState.top[0][2] = cubeState.right[2][2];
+            // Bottom row 2 -> Right col 2
+            cubeState.right[0][2] = cubeState.bottom[2][2];
+            cubeState.right[1][2] = cubeState.bottom[2][1];
+            cubeState.right[2][2] = cubeState.bottom[2][0];
+            // Left col 0 -> Bottom row 2
+            cubeState.bottom[2][0] = cubeState.left[0][0];
+            cubeState.bottom[2][1] = cubeState.left[1][0];
+            cubeState.bottom[2][2] = cubeState.left[2][0];
+            // Temp (Top row 0) -> Left col 0
+            cubeState.left[0][0] = temp[2];
+            cubeState.left[1][0] = temp[1];
+            cubeState.left[2][0] = temp[0];
+            updateVisuals();
+        }
+
+        // B': Rotate Back face counter-clockwise
+        function rotateBPrime() {
+            console.log("Rotating B Prime");
+            cubeState.back = rotateFaceCCW(cubeState.back);
+            const temp = [...cubeState.top[0]]; // Store copy of top face's top row
+             // Left col 0 -> Top row 0
+            cubeState.top[0][0] = cubeState.left[2][0];
+            cubeState.top[0][1] = cubeState.left[1][0];
+            cubeState.top[0][2] = cubeState.left[0][0];
+            // Bottom row 2 -> Left col 0
+            cubeState.left[0][0] = cubeState.bottom[2][0];
+            cubeState.left[1][0] = cubeState.bottom[2][1];
+            cubeState.left[2][0] = cubeState.bottom[2][2];
+            // Right col 2 -> Bottom row 2
+            cubeState.bottom[2][0] = cubeState.right[2][2];
+            cubeState.bottom[2][1] = cubeState.right[1][2];
+            cubeState.bottom[2][2] = cubeState.right[0][2];
+            // Temp (Top row 0) -> Right col 2
+            cubeState.right[0][2] = temp[0];
+            cubeState.right[1][2] = temp[1];
+            cubeState.right[2][2] = temp[2];
+            updateVisuals();
+        }
+
+
+        // --- Initialization ---
+        faces.forEach(faceName => {
+            const faceDiv = cubeElement.querySelector('.' + faceName);
+            if (faceDiv) {
+                faceElements[faceName] = faceDiv;
+                for (let i = 0; i < 9; i++) {
+                    const cubieDiv = document.createElement('div');
+                    cubieDiv.classList.add('cubie');
+                    faceDiv.appendChild(cubieDiv);
+                }
+            } else {
+                console.error("Face element not found:", faceName);
+            }
+        });
+        updateVisuals(); // Initial draw
+
+        // --- Event Listeners ---
+
+        // Buttons for all face rotations
+        document.getElementById('rotateF').addEventListener('click', rotateF);
+        document.getElementById('rotateFPrime').addEventListener('click', rotateFPrime);
+        document.getElementById('rotateU').addEventListener('click', rotateU);
+        document.getElementById('rotateUPrime').addEventListener('click', rotateUPrime);
+        document.getElementById('rotateD').addEventListener('click', rotateD);
+        document.getElementById('rotateDPrime').addEventListener('click', rotateDPrime);
+        document.getElementById('rotateL').addEventListener('click', rotateL);
+        document.getElementById('rotateLPrime').addEventListener('click', rotateLPrime);
+        document.getElementById('rotateR').addEventListener('click', rotateR);
+        document.getElementById('rotateRPrime').addEventListener('click', rotateRPrime);
+        document.getElementById('rotateB').addEventListener('click', rotateB);
+        document.getElementById('rotateBPrime').addEventListener('click', rotateBPrime);
+
+
+        // Keyboard listener for Arrow Key moves
+        document.addEventListener('keydown', (e) => {
+             // Prevent default scrolling behavior for arrow keys
+            if (e.key.startsWith('Arrow')) {
+                 e.preventDefault();
+            }
+
+            const shift = e.shiftKey; // Check if Shift key is pressed
+
+            switch (e.key) {
+                case 'ArrowUp':
+                    shift ? rotateUPrime() : rotateU();
+                    break;
+                case 'ArrowDown':
+                    shift ? rotateDPrime() : rotateD();
+                    break;
+                case 'ArrowLeft':
+                    shift ? rotateLPrime() : rotateL();
+                    break;
+                case 'ArrowRight':
+                    shift ? rotateRPrime() : rotateR();
+                    break;
+                 // Add cases for other keys if desired (e.g., 'f', 'b')
+                 // case 'f':
+                 //    shift ? rotateFPrime() : rotateF();
+                 //    break;
+                 // case 'b':
+                 //    shift ? rotateBPrime() : rotateB();
+                 //    break;
+            }
+        });
+
+
+        // --- Mouse Drag Rotation (Whole Cube) ---
+        let isDragging = false;
+        let previousX, previousY;
+        let rotationX = -30;
+        let rotationY = -45;
+
+        document.addEventListener('mousedown', (e) => {
+            if (e.target.closest('.controls') || e.target.closest('.info-text')) return; // Ignore clicks on controls/info
+            isDragging = true;
+            previousX = e.clientX;
+            previousY = e.clientY;
+            cubeElement.style.transition = 'none';
+            body.style.cursor = 'grabbing';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const deltaX = e.clientX - previousX;
+            const deltaY = e.clientY - previousY;
+            rotationY += deltaX / 1.5;
+            rotationX -= deltaY / 1.5;
+            cubeElement.style.transform = `rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+            previousX = e.clientX;
+            previousY = e.clientY;
+        });
+
+        const stopDragging = () => {
+            if (isDragging) {
+                isDragging = false;
+                cubeElement.style.transition = 'transform 0.1s linear';
+                body.style.cursor = 'grab';
+            }
+        };
+        document.addEventListener('mouseup', stopDragging);
+        document.addEventListener('mouseleave', stopDragging);
+        body.style.cursor = 'grab';
+
+    </script>
+
+</body>
+</html>
