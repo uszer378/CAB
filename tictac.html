@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+        }
+        .cell {
+            width: 100px;
+            height: 100px;
+            background-color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 2px solid #ccc;
+            cursor: pointer;
+        }
+        .cell img {
+            width: 80%;
+            height: 80%;
+        }
+    </style>
+</head>
+<body>
+    <div class="board" id="board"></div>
+
+    <script>
+        const board = document.getElementById("board");
+        let currentPlayer = "X";
+        const images = {
+            X: "https://gameimport1.wordpress.com/wp-content/uploads/2025/04/2025_04_14_0ln_kleki.png",
+            O: "https://gameimport1.wordpress.com/wp-content/uploads/2025/04/2025_04_14_0lo_kleki.png"
+        };
+
+        function checkWinner() {
+            const cells = [...document.querySelectorAll(".cell")];
+            const combos = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columns
+                [0, 4, 8], [2, 4, 6]            // Diagonals
+            ];
+
+            for (const [a, b, c] of combos) {
+                if (cells[a].dataset.player &&
+                    cells[a].dataset.player === cells[b].dataset.player &&
+                    cells[a].dataset.player === cells[c].dataset.player) {
+                    alert(`${cells[a].dataset.player} wins!`);
+                    resetBoard();
+                    return true;
+                }
+            }
+
+            if (cells.every(cell => cell.dataset.player)) {
+                alert("It's a tie!");
+                resetBoard();
+                return true;
+            }
+
+            return false;
+        }
+
+        function resetBoard() {
+            board.innerHTML = "";
+            createBoard();
+        }
+
+        function createBoard() {
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement("div");
+                cell.classList.add("cell");
+                cell.addEventListener("click", () => {
+                    if (!cell.dataset.player) {
+                        cell.dataset.player = currentPlayer;
+                        const img = document.createElement("img");
+                        img.src = images[currentPlayer];
+                        cell.appendChild(img);
+                        if (!checkWinner()) {
+                            currentPlayer = currentPlayer === "X" ? "O" : "X";
+                        }
+                    }
+                });
+                board.appendChild(cell);
+            }
+        }
+
+        createBoard();
+    </script>
+</body>
+</html>
