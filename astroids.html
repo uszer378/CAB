@@ -1,180 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Asteroids Game</title>
-  <style>
-    html, body {
-      margin: 0;
-      overflow: hidden;
-      background: black;
-    }
-    canvas {
-      display: block;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Snake Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+
+        .game-container {
+            position: relative;
+            text-align: center;
+        }
+
+        canvas {
+            background-color: #000;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .score {
+            font-size: 20px;
+            margin-top: 10px;
+            color: #333;
+        }
+    </style>
 </head>
 <body>
-<canvas id="game"></canvas>
+    <div class="game-container">
+        <canvas id="gameCanvas"></canvas>
+        <div class="score">Score: <span id="score">0</span></div>
+    </div>
 
-<script>
-const canvas = document.getElementById("game");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
 
-const keys = {};
-const bullets = [];
-const asteroids = [];
+        const gridSize = 20;  // Size of the grid
+        const canvasSize = 400;  // Canvas size (400x400)
+        canvas.width = canvas.height = canvasSize;
 
-let gameOver = false;
+        let snake = [
+            { x: 8 * gridSize, y: 8 * gridSize },
+            { x: 7 * gridSize, y: 8 * gridSize },
+            { x: 6 * gridSize, y: 8 * gridSize }
+        ];
+        let food = { x: 0, y: 0 };
+        let direction = 'RIGHT';
+        let score = 0;
+        let gameInterval;
 
-const ship = {
-  x: canvas.width / 2,
-  y: canvas.height / 2,
-  angle: 0,
-  vx: 0,
-  vy: 0,
-  radius: 15
-};
-
-document.addEventListener("keydown", (e) => {
-  keys[e.code] = true;
-  if (e.code === "Space" && !gameOver) shoot();
-});
-document.addEventListener("keyup", (e) => {
-  keys[e.code] = false;
-});
-
-function shoot() {
-  bullets.push({
-    x: ship.x + Math.cos(ship.angle) * 20,
-    y: ship.y + Math.sin(ship.angle) * 20,
-    vx: Math.cos(ship.angle) * 6,
-    vy: Math.sin(ship.angle) * 6,
-    life: 60
-  });
-}
-
-function createAsteroid(x = null, y = null, size = 50) {
-  const angle = Math.random() * Math.PI * 2;
-  const speed = 1 + Math.random();
-  asteroids.push({
-    x: x ?? Math.random() * canvas.width,
-    y: y ?? Math.random() * canvas.height,
-    vx: Math.cos(angle) * speed,
-    vy: Math.sin(angle) * speed,
-    size: size
-  });
-}
-
-for (let i = 0; i < 5; i++) createAsteroid();
-
-function drawShip() {
-  ctx.save();
-  ctx.translate(ship.x, ship.y);
-  ctx.rotate(ship.angle);
-  ctx.beginPath();
-  ctx.moveTo(20, 0);
-  ctx.lineTo(-15, -10);
-  ctx.lineTo(-10, 0);
-  ctx.lineTo(-15, 10);
-  ctx.closePath();
-  ctx.strokeStyle = "white";
-  ctx.stroke();
-  ctx.restore();
-}
-
-function wrap(obj) {
-  if (obj.x < 0) obj.x = canvas.width;
-  if (obj.x > canvas.width) obj.x = 0;
-  if (obj.y < 0) obj.y = canvas.height;
-  if (obj.y > canvas.height) obj.y = 0;
-}
-
-function update() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  if (gameOver) {
-    ctx.fillStyle = "white";
-    ctx.font = "48px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2);
-    return;
-  }
-
-  // Controls
-  if (keys["ArrowLeft"]) ship.angle -= 0.07;
-  if (keys["ArrowRight"]) ship.angle += 0.07;
-  if (keys["ArrowUp"]) {
-    ship.vx += Math.cos(ship.angle) * 0.1;
-    ship.vy += Math.sin(ship.angle) * 0.1;
-  }
-
-  // Move ship
-  ship.x += ship.vx;
-  ship.y += ship.vy;
-  wrap(ship);
-  drawShip();
-
-  // Bullets
-  for (let i = bullets.length - 1; i >= 0; i--) {
-    const b = bullets[i];
-    b.x += b.vx;
-    b.y += b.vy;
-    b.life--;
-    wrap(b);
-    if (b.life <= 0) bullets.splice(i, 1);
-    else {
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, 3, 0, Math.PI * 2);
-      ctx.fillStyle = "white";
-      ctx.fill();
-    }
-  }
-
-  // Asteroids
-  for (let i = asteroids.length - 1; i >= 0; i--) {
-    const a = asteroids[i];
-    a.x += a.vx;
-    a.y += a.vy;
-    wrap(a);
-
-    // Draw asteroid
-    ctx.beginPath();
-    ctx.arc(a.x, a.y, a.size / 2, 0, Math.PI * 2);
-    ctx.strokeStyle = "gray";
-    ctx.stroke();
-
-    // Check collision with ship
-    const dx = ship.x - a.x;
-    const dy = ship.y - a.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist < a.size / 2 + ship.radius) {
-      gameOver = true;
-    }
-
-    // Bullet collisions
-    for (let j = bullets.length - 1; j >= 0; j--) {
-      const b = bullets[j];
-      const bx = b.x - a.x;
-      const by = b.y - a.y;
-      if (Math.hypot(bx, by) < a.size / 2) {
-        bullets.splice(j, 1);
-        if (a.size > 20) {
-          createAsteroid(a.x, a.y, a.size / 2);
-          createAsteroid(a.x, a.y, a.size / 2);
+        function randomPosition() {
+            return Math.floor(Math.random() * (canvasSize / gridSize)) * gridSize;
         }
-        asteroids.splice(i, 1);
-        break;
-      }
-    }
-  }
 
-  requestAnimationFrame(update);
-}
+        function spawnFood() {
+            food = {
+                x: randomPosition(),
+                y: randomPosition()
+            };
+        }
 
-update();
-</script>
+        function drawSnake() {
+            snake.forEach(segment => {
+                ctx.fillStyle = 'lime';
+                ctx.fillRect(segment.x, segment.y, gridSize, gridSize);
+            });
+        }
+
+        function drawFood() {
+            ctx.fillStyle = 'red';
+            ctx.fillRect(food.x, food.y, gridSize, gridSize);
+        }
+
+        function moveSnake() {
+            const head = { ...snake[0] };
+
+            if (direction === 'UP') head.y -= gridSize;
+            if (direction === 'DOWN') head.y += gridSize;
+            if (direction === 'LEFT') head.x -= gridSize;
+            if (direction === 'RIGHT') head.x += gridSize;
+
+            snake.unshift(head);
+
+            if (head.x === food.x && head.y === food.y) {
+                score++;
+                document.getElementById("score").textContent = score;
+                spawnFood();
+            } else {
+                snake.pop();
+            }
+        }
+
+        function checkCollisions() {
+            const head = snake[0];
+
+            if (head.x < 0 || head.x >= canvasSize || head.y < 0 || head.y >= canvasSize) {
+                return true;
+            }
+
+            for (let i = 1; i < snake.length; i++) {
+                if (head.x === snake[i].x && head.y === snake[i].y) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            moveSnake();
+            if (checkCollisions()) {
+                clearInterval(gameInterval);
+                alert("Game Over!");
+                return;
+            }
+
+            drawSnake();
+            drawFood();
+        }
+
+        function changeDirection(event) {
+            if (event.key === 'ArrowUp' && direction !== 'DOWN') direction = 'UP';
+            if (event.key === 'ArrowDown' && direction !== 'UP') direction = 'DOWN';
+            if (event.key === 'ArrowLeft' && direction !== 'RIGHT') direction = 'LEFT';
+            if (event.key === 'ArrowRight' && direction !== 'LEFT') direction = 'RIGHT';
+        }
+
+        document.addEventListener('keydown', changeDirection);
+
+        spawnFood();
+        gameInterval = setInterval(gameLoop, 100);
+    </script>
 </body>
 </html>
