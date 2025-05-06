@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #87CEEB; /* Sky Blue */
+            font-family: 'Press Start 2P', cursive;
+            overflow: hidden; /* Prevent scrollbars */
+        }
+
+        #gameCanvas {
+            border: 2px solid #333; /* Darker border */
+            background-color: #ADD8E6; /* Light Blue */
+            display: block; /* Important for canvas sizing */
+        }
+
+        #startButton, #restartButton {
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 1rem;
+            font-family: 'Press Start 2P', cursive;
+            border-radius: 5px;
+            background-color: #FFD700; /* Gold */
+            color: #000;
+            border: none;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2); /* Add shadow */
+            transition: background-color 0.3s ease; /* Smooth transition */
+        }
+
+        #startButton:hover, #restartButton:hover {
+            background-color: #FFC300; /* Darker Gold */
+        }
+
+        #message {
+            position: absolute;
+            color: #FFF;
+            font-size: 1.5rem;
+            text-align: center;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
+            padding: 1rem;
+            border-radius: 10px;
+            display: none; /* Initially hidden */
+            z-index: 10;
+        }
+
+        #scoreDisplay {
+            position: absolute;
+            top: 1rem;
+            left: 50%;
+             transform: translateX(-50%);
+            color: #FFF;
+            font-size: 2rem;
+            z-index: 10;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .game-over-overlay {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 11;
+            display: none;
+        }
+
+        .game-over-content {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            border: 4px solid #3b82f6;
+            background-color: #000;
+        }
+
+        .game-over-title {
+            font-size: 2rem;
+            color: #f87171;
+            margin-bottom: 1rem;
+        }
+
+        .game-over-score {
+            font-size: 1.25rem;
+            color: #fff;
+            margin-bottom: 1.5rem;
+        }
+
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="320" height="480"></canvas>
+    <button id="startButton">Start Game</button>
+    <button id="restartButton" style="display:none;">Restart</button>
+    <div id="message"></div>
+    <div id="scoreDisplay">Score: 0</div>
+
+    <div class="game-over-overlay">
+        <div class="game-over-content">
+            <h2 class="game-over-title">Game Over</h2>
+            <p class="game-over-score">Final Score: <span id="finalScore">0</span></p>
+            <button id="restartButtonOverlay" style="margin: 0;">Restart</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const messageElement = document.getElementById('message');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const gameOverOverlay = document.querySelector('.game-over-overlay');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const restartButtonOverlay = document.getElementById('restartButtonOverlay');
+
+        let birdX = 50;
+        let birdY = canvas.height / 2;
+        let birdRadius = 20;
+        let birdVelocity = 0;
+        let gravity = 0.6;
+        let flapStrength = -8;
+        let pipeWidth = 50;
+        let pipeHeight = 300;
+        let pipeGap = 150;
+        let pipeX = canvas.width;
+        let pipeSpeed = -2;
+        let pipes = [];
+        let score = 0;
+        let gameRunning = false;
+        let animationId;
+        let gameAnimationFrame; // Store the animation frame ID
+
+        function resetGame() {
+            birdX = 50;
+            birdY = canvas.height / 2;
+            birdVelocity = 0;
+            pipes = [{ x: canvas.width, topHeight: Math.floor(Math.random() * (canvas.height - pipeGap - 50)) + 50 }];
+            score = 0;
+            gameRunning = false; // Set to false initially
+            pipeX = canvas.width; // Reset pipeX
+            scoreDisplay.textContent = `Score: ${score}`;
+            gameOverOverlay.style.display = 'none';
+            startButton.style.display = ''; // Show the start button
+            restartButton.style.display = 'none';
+            messageElement.style.display = 'none'; // Hide message
+            cancelAnimationFrame(gameAnimationFrame); // Cancel any existing animation frame
+        }
+
+
+        function drawBird() {
+            // Draw the bird's body
+            ctx.beginPath();
+            ctx.ellipse(birdX, birdY, birdRadius, birdRadius * 0.6, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'yellow';
+            ctx.fill();
+            ctx.closePath();
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+
+            // Draw the bird's beak, now pointing forward
+            ctx.beginPath();
+            ctx.moveTo(birdX + birdRadius * 0.6, birdY); // Start at the right edge of the ellipse
+            ctx.lineTo(birdX + birdRadius * 1.4, birdY - birdRadius * 0.4);
+            ctx.lineTo(birdX + birdRadius * 1.4, birdY + birdRadius * 0.4);
+            ctx.closePath();
+            ctx.fillStyle = 'orange';
+            ctx.fill();
+            ctx.strokeStyle = 'black';
+            ctx.stroke();
+
+            // Draw the bird's eye
+            ctx.beginPath();
+            ctx.arc(birdX + birdRadius * 0.2, birdY - birdRadius * 0.2, 3, 0, Math.PI * 2);
+            ctx.fillStyle = 'black';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        function drawPipes() {
+            pipes.forEach(pipe => {
+                // Top pipe
+                ctx.fillStyle = 'green';
+                ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+                ctx.strokeStyle = 'black';
+                ctx.strokeRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+
+                // Bottom pipe
+                ctx.fillRect(pipe.x, pipe.topHeight + pipeGap, pipeWidth, canvas.height - pipe.topHeight - pipeGap);
+                ctx.strokeStyle = 'black';
+                ctx.strokeRect(pipe.x, pipe.topHeight + pipeGap, pipeWidth, canvas.height - pipe.topHeight - pipeGap);
+            });
+        }
+
+        function updateBird() {
+            birdVelocity += gravity;
+            birdY += birdVelocity;
+
+            if (birdY + birdRadius > canvas.height || birdY - birdRadius < 0) {
+                endGame();
+            }
+        }
+
+        function updatePipes() {
+            if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - 150) {
+                pipes.push({ x: canvas.width, topHeight: Math.floor(Math.random() * (canvas.height - pipeGap - 50)) + 50 });
+            }
+
+            pipes.forEach(pipe => {
+                pipe.x += pipeSpeed;
+            });
+
+            if (pipes[0] && pipes[0].x < -pipeWidth) {
+                pipes.shift();
+                score++;
+                scoreDisplay.textContent = `Score: ${score}`;
+            }
+        }
+
+        function checkCollision() {
+            for (let pipe of pipes) {
+                if (
+                    birdX + birdRadius > pipe.x &&
+                    birdX - birdRadius < pipe.x + pipeWidth &&
+                    (birdY - birdRadius < pipe.topHeight || birdY + birdRadius > pipe.topHeight + pipeGap)
+                ) {
+                    endGame();
+                    return true; // Return true if collision occurs
+                }
+            }
+            return false; // Return false if no collision occurs
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBird();
+            drawPipes();
+        }
+
+        function update() {
+            if (!gameRunning) return;
+
+            updateBird();
+            updatePipes();
+            if(checkCollision()){
+                return;
+            }
+            draw();
+
+            gameAnimationFrame = requestAnimationFrame(update); // Store the animation frame ID
+        }
+
+        function startGame() {
+            if (!gameRunning) {
+                gameRunning = true;
+                startButton.style.display = 'none';
+                restartButton.style.display = 'none';
+                messageElement.style.display = 'none';
+                update();
+            }
+        }
+
+        function endGame() {
+            gameRunning = false;
+            cancelAnimationFrame(gameAnimationFrame); // Stop animation loop
+             finalScoreDisplay.textContent = score;
+            gameOverOverlay.style.display = 'flex';
+            restartButton.style.display = 'none'; // Hide the restart button
+        }
+
+        function handleFlap() {
+            if (gameRunning) {
+                birdVelocity = flapStrength;
+            }
+        }
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Space' || event.key === ' ') {
+                handleFlap();
+            }
+        });
+
+        canvas.addEventListener('click', handleFlap);
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', resetGame);
+        restartButtonOverlay.addEventListener('click', resetGame);
+
+        resetGame(); // Initial reset
+
+    </script>
+</body>
+</html>
