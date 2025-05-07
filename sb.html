@@ -256,7 +256,6 @@
         <button class="button" id="muteButton">
           <span id="muteIcon">🔊</span> <span id="muteText">Sound On</span>
         </button>
-        <button class="button" id="netherButton">Nether Mode</button>
     </div>
 
     <div id="message" class="mt-4 text-center text-gray-300">Click to place material. Select material below.</div>
@@ -279,7 +278,6 @@
         const muteButton = document.getElementById('muteButton');
         const muteIcon = document.getElementById('muteIcon');
         const muteText = document.getElementById('muteText');
-        const netherButton = document.getElementById('netherButton'); // Get the Nether button
 
         // Get the modal
         const gameOverModal = document.getElementById('gameOverModal');
@@ -298,30 +296,17 @@
         let isMouseDown = false; // Track mouse state
         let previousX = -1;
         let previousY = -1;
-        let isNetherMode = false; // Track Nether mode
 
 
-        const baseMaterials = [ // Base materials for Overworld
+        const materials = [
             { name: 'Water', color: '#0000FF' },
             { name: 'Lava', color: '#FF4500' },
             { name: 'Brick', color: '#B22222' },
             { name: 'TNT', color: '#FFD700' },
             { name: 'Cobblestone', color: '#808080' },
-            { name: 'Netherrack', color: '#800000' },
-            { name: 'Magma', color: '#FFA500' },
+            { name: 'Netherrack', color: '#800000' }, // Darker red
+            { name: 'Magma', color: '#FFA500' }, // Darker orange
         ];
-
-        const netherMaterials = [ // Materials for Nether
-            { name: 'Netherrack', color: '#800000' },
-            { name: 'Magma', color: '#FFA500' },
-            { name: 'Lava', color: '#FF4500' },
-            { name: 'Soul Sand', color: '#BC8F8F' }, // Add Soul Sand
-            { name: 'Gravel', color: '#808080' },
-            { name: 'Crimson Nylium', color: '#DC143C'},
-            { name: 'Warped Nylium', color: '#008B8B' },
-        ];
-
-        let materials = baseMaterials; // Default material set
 
         // --- Sound Effects (Tone.js) ---
         const synth = new Tone.Synth().toDestination();
@@ -343,9 +328,6 @@
                 case 'gameover':
                     const polySynthGameOver = new Tone.PolySynth().toDestination();
                     polySynthGameOver.triggerAttackRelease(["C2", "E2", "G2", "Bb2"], "2n", now);
-                    break;
-                case 'nether':  // Add sound for Nether mode change
-                    synth.triggerAttackRelease("C2", "2n", now);
                     break;
             }
         }
@@ -579,5 +561,14 @@
         resetButton.addEventListener('click', resetGame);
         playAgainButton.addEventListener('click', resetGame);
 
-        netherButton.addEventListener('click', () => { // Nether button functionality
-            isNetherMode = !isNetherMode; // Toggle Net
+
+        // Initialize active button
+        document.querySelector(`[data-material="${selectedMaterial}"]`).classList.add('active');
+
+        // Start the game loop
+        setInterval(simulateStep, 200); // Lower interval for slower simulation
+
+        drawGrid(); // Initial draw
+    </script>
+</body>
+</html>
