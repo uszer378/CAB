@@ -249,10 +249,14 @@
         <button class="button" data-material="2">Lava</button>
         <button class="button" data-material="3">Brick</button>
         <button class="button" data-material="4">TNT</button>
+        <button class="button" data-material="5">Cobblestone</button>
+        <button class="button" data-material="6">Netherrack</button>
+        <button class="button" data-material="7">Magma</button>
         <button class="button" id="resetButton">Reset</button>
         <button class="button" id="muteButton">
           <span id="muteIcon">🔊</span> <span id="muteText">Sound On</span>
         </button>
+        <button class="button" id="netherButton">Nether Mode</button>
     </div>
 
     <div id="message" class="mt-4 text-center text-gray-300">Click to place material. Select material below.</div>
@@ -275,6 +279,7 @@
         const muteButton = document.getElementById('muteButton');
         const muteIcon = document.getElementById('muteIcon');
         const muteText = document.getElementById('muteText');
+        const netherButton = document.getElementById('netherButton'); // Get the Nether button
 
         // Get the modal
         const gameOverModal = document.getElementById('gameOverModal');
@@ -284,7 +289,7 @@
         const gridSize = 20;
         const numCols = canvas.width / gridSize;
         const numRows = canvas.height / gridSize;
-        let grid = Array(numRows).fill(null).map(() => Array(numCols).fill(0)); // 0: air, 1: water, 2: lava, 3: brick, 4: TNT
+        let grid = Array(numRows).fill(null).map(() => Array(numCols).fill(0)); // 0: air, 1: water, 2: lava, 3: brick, 4: TNT, 5: Cobblestone, 6: Netherrack, 7: Magma
 
         let selectedMaterial = 1; // Default to water
         let isMuted = false;
@@ -293,14 +298,30 @@
         let isMouseDown = false; // Track mouse state
         let previousX = -1;
         let previousY = -1;
+        let isNetherMode = false; // Track Nether mode
 
 
-        const materials = [
+        const baseMaterials = [ // Base materials for Overworld
             { name: 'Water', color: '#0000FF' },
             { name: 'Lava', color: '#FF4500' },
             { name: 'Brick', color: '#B22222' },
             { name: 'TNT', color: '#FFD700' },
+            { name: 'Cobblestone', color: '#808080' },
+            { name: 'Netherrack', color: '#800000' },
+            { name: 'Magma', color: '#FFA500' },
         ];
+
+        const netherMaterials = [ // Materials for Nether
+            { name: 'Netherrack', color: '#800000' },
+            { name: 'Magma', color: '#FFA500' },
+            { name: 'Lava', color: '#FF4500' },
+            { name: 'Soul Sand', color: '#BC8F8F' }, // Add Soul Sand
+            { name: 'Gravel', color: '#808080' },
+            { name: 'Crimson Nylium', color: '#DC143C'},
+            { name: 'Warped Nylium', color: '#008B8B' },
+        ];
+
+        let materials = baseMaterials; // Default material set
 
         // --- Sound Effects (Tone.js) ---
         const synth = new Tone.Synth().toDestination();
@@ -322,6 +343,9 @@
                 case 'gameover':
                     const polySynthGameOver = new Tone.PolySynth().toDestination();
                     polySynthGameOver.triggerAttackRelease(["C2", "E2", "G2", "Bb2"], "2n", now);
+                    break;
+                case 'nether':  // Add sound for Nether mode change
+                    synth.triggerAttackRelease("C2", "2n", now);
                     break;
             }
         }
@@ -390,6 +414,7 @@
             }
             if (exploded){
                 playSound('explode');
+                drawGrid(); // Call drawGrid here to see the explosion
             }
             return exploded;
         }
@@ -407,6 +432,9 @@
                     const below = grid[i + 1][j];
                     const belowLeft = j > 0 ? grid[i + 1][j - 1] : undefined;
                     const belowRight = j < numCols - 1 ? grid[i + 1][j + 1] : undefined;
+                    const left = j > 0 ? grid[i][j - 1] : undefined;
+                    const right = j < numCols - 1 ? grid[i][j + 1] : undefined;
+
 
                     if (current === 1) { // Water
                         if (below === 0) {
@@ -423,8 +451,6 @@
                             updated = true;
                         } else {
                             // Attempt to spread horizontally
-                            const left = j > 0 ? grid[i][j - 1] : undefined;
-                            const right = j < numCols - 1 ? grid[i][j + 1] : undefined;
                             if (left === 0) {
                                 grid[i][j - 1] = current;
                                 grid[i][j] = 0;
@@ -449,21 +475,49 @@
                             grid[i][j] = 0;
                             updated = true;
                         }
-                        // Lava interactions - simplified for this example
-                        if (below === 1 || belowLeft === 1 || belowRight === 1) {
-                            grid[i + 1][j] = 0; // Lava evaporates water
-                            if (!isMuted) {
-                              const synth = new Tone.Synth().toDestination();
-                              let now = Tone.now();
-                              synth.triggerAttackRelease("A4", "8n", now);
-                            }
+                        // Lava interactions
+                        if (below === 1) {
+                            grid[i + 1][j] = 5; // Create Cobblestone
+                            grid[i][j] = 0;
                             updated = true;
-                            score += 10; // Award points for evaporating water
+                        } else if (belowLeft === 1) {
+                            grid[i + 1][j - 1] = 5;
+                            grid[i][j] = 0;
+                            updated = true;
+                        } else if (belowRight === 1) {
+                            grid[i + 1][j + 1] = 5;
+                            grid[i][j] = 0;
+                            updated = true;
+                        }  else if (left === 1) {
+                            grid[i][j - 1] = 5; // Create Cobblestone
+                            grid[i][j] = 0;
+                            updated = true;
+                        } else if (right === 1) {
+                            grid[i][j + 1] = 5; // Create Cobblestone
+                            grid[i][j] = 0;
+                            updated = true;
                         }
                     } else if (current === 4) { // TNT
                         if (below === 1 || belowLeft === 1 || belowRight === 1 || below === 2 || belowLeft === 2 || belowRight === 2) {
                             grid[i][j] = 0;
                             updated = explodeTNT(j, i);
+                        }
+                    } else if (current === 6) { // Netherrack
+                         if (below === 0) {
+                            grid[i + 1][j] = current;
+                            grid[i][j] = 0;
+                            updated = true;
+                        }
+                    } else if (current === 7) { // Magma
+                        if (below === 0) {
+                            grid[i + 1][j] = current;
+                            grid[i][j] = 0;
+                            updated = true;
+                        }  else if (below === 1) {
+                            grid[i + 1][j] = 0; // Magma evaporates water
+                            grid[i][j] = 0;
+                            updated = true;
+                            score += 15;
                         }
                     }
                 }
@@ -525,14 +579,5 @@
         resetButton.addEventListener('click', resetGame);
         playAgainButton.addEventListener('click', resetGame);
 
-
-        // Initialize active button
-        document.querySelector(`[data-material="${selectedMaterial}"]`).classList.add('active');
-
-        // Start the game loop
-        setInterval(simulateStep, 200); // Lower interval for slower simulation
-
-        drawGrid(); // Initial draw
-    </script>
-</body>
-</html>
+        netherButton.addEventListener('click', () => { // Nether button functionality
+            isNetherMode = !isNetherMode; // Toggle Net
