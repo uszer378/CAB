@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D Sandbox</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Press Start 2P', sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #111827; /* Dark background */
+        }
+
+        #gameCanvas {
+            border: 2px solid #6b7280; /* Darker border */
+            background-color: #1F2937;  /* Darker canvas */
+            cursor: pointer;
+            border-radius: 8px; /* Rounded corners */
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5); /* Stronger shadow */
+        }
+
+        #controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px; /* Rounded corners */
+            background-color: #374151; /* Dark button color */
+            color: #f9fafb; /* Light text color */
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-family: 'Press Start 2P', sans-serif;
+            transition: background-color 0.3s ease, transform 0.2s ease; /* Smooth transition */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* Add shadow */
+            text-shadow: 1px 1px 0px #1f2937;
+        }
+
+        .button:hover {
+            background-color: #4b5563; /* Slightly lighter on hover */
+            transform: scale(1.05); /* Slight scale on hover */
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4); /* Increased shadow on hover */
+        }
+
+        .button.active {
+            background-color: #6b7280; /* Active button color */
+            transform: scale(0.95); /* Slight scale down when active */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); /* Smaller shadow when active */
+        }
+
+        #message {
+            margin-top: 20px;
+            color: #f9fafb;
+            font-size: 0.8rem;
+            text-align: center;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #6b7280;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Style for the modal and backdrop - Dark Theme */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5); /* Darker modal backdrop */
+        }
+
+        .modal-content {
+            background-color: #374151; /* Darker modal content */
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #6b7280; /* Darker modal border */
+            width: 80%;
+            border-radius: 8px; /* Rounded corners */
+            position: relative;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5); /* Add shadow */
+            color: #f9fafb;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #6b7280; /* Darker header border */
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.2rem;
+            color: #f9fafb;
+        }
+
+        .close-button {
+            color: #f9fafb; /* Light close button color */
+            float: right;
+            font-size: 1.5rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .close-button:hover,
+        .close-button:focus {
+            color: #cbd5e0; /* Slightly lighter on hover */
+            text-decoration: none;
+        }
+
+        .modal-body {
+            padding: 10px 0;
+        }
+
+        .modal-body p {
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+
+        .modal-footer {
+            padding-top: 15px;
+            border-top: 1px solid #6b7280; /* Darker footer border */
+            text-align: right;
+        }
+
+        .modal-footer button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 8px;
+            background-color: #4b5563; /* Dark button color */
+            color: #f9fafb;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background-color 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-footer button:hover {
+            background-color: #6b7280; /* Lighter on hover */
+            transform: scale(1.05);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+        }
+
+        .game-over-content {
+            text-align: center;
+            padding: 1rem;
+            border-radius: 8px;
+            background-color: #4b5563;
+            color: #f9fafb;
+            margin-bottom: 1rem;
+        }
+
+        .game-over-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 0.75rem;
+            color: #f87171;
+        }
+
+        .game-over-score {
+            font-size: 1rem;
+            margin-bottom: 1rem;
+        }
+
+    </style>
+    <style>
+      /* Custom CSS for the Game Over Modal */
+      #gameOverModal {
+          display: none;
+          position: fixed;
+          z-index: 50;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          overflow: auto;
+          background-color: rgba(0,0,0,0.5); /* Darker modal backdrop */
+          justify-content: center;
+          align-items: center;
+      }
+
+      #gameOverModal .modal-content {
+          background-color: #374151; /* Darker modal content */
+          color: #f9fafb;
+          padding: 2rem;
+          border-radius: 0.75rem;
+          border: 1px solid #6b7280; /* Darker modal border */
+          width: 90%;
+          max-width: 400px; /* Responsive width */
+          text-align: center;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.5); /* Add shadow */
+      }
+
+      #gameOverModal .game-over-title {
+          font-size: 1.5rem;
+          font-weight: bold;
+          margin-bottom: 1rem;
+          color: #f87171; /* Red color for game over */
+      }
+
+      #gameOverModal .game-over-score {
+          font-size: 1.125rem;
+          margin-bottom: 1.5rem;
+      }
+
+      #gameOverModal .play-again-button {
+          padding: 0.75rem 1.5rem;
+          background-color: #4b5563; /* Dark button color */
+          color: #f9fafb;
+          border: none;
+          border-radius: 0.375rem;
+          cursor: pointer;
+          font-size: 1rem;
+          transition: background-color 0.3s ease, transform 0.2s ease;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          font-family: 'Press Start 2P', sans-serif;
+      }
+
+      #gameOverModal .play-again-button:hover {
+          background-color: #6b7280; /* Lighter on hover */
+          transform: scale(1.05);
+          box-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+      }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-50">
+    <canvas id="gameCanvas" width="600" height="400"></canvas>
+
+    <div id="controls" class="mt-4">
+        <button class="button" data-material="1">Water</button>
+        <button class="button" data-material="2">Lava</button>
+        <button class="button" data-material="3">Brick</button>
+        <button class="button" data-material="4">TNT</button>
+        <button class="button" id="resetButton">Reset</button>
+        <button class="button" id="muteButton">
+          <span id="muteIcon">🔊</span> <span id="muteText">Sound On</span>
+        </button>
+    </div>
+
+    <div id="message" class="mt-4 text-center text-gray-300">Click to place material. Select material below.</div>
+
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <h2 class="game-over-title">Game Over</h2>
+            <p class="game-over-score">Final Score: <span id="finalScore">0</span></p>
+            <button class="play-again-button" id="playAgainButton">Play Again</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const controls = document.getElementById('controls');
+        const message = document.getElementById('message');
+        const resetButton = document.getElementById('resetButton');
+        const muteButton = document.getElementById('muteButton');
+        const muteIcon = document.getElementById('muteIcon');
+        const muteText = document.getElementById('muteText');
+
+        // Get the modal
+        const gameOverModal = document.getElementById('gameOverModal');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const playAgainButton = document.getElementById('playAgainButton');
+
+        const gridSize = 20;
+        const numCols = canvas.width / gridSize;
+        const numRows = canvas.height / gridSize;
+        let grid = Array(numRows).fill(null).map(() => Array(numCols).fill(0)); // 0: air, 1: water, 2: lava, 3: brick, 4: TNT
+
+        let selectedMaterial = 1; // Default to water
+        let isMuted = false;
+        let gameRunning = true;
+        let score = 0;
+        let isMouseDown = false; // Track mouse state
+        let previousX = -1;
+        let previousY = -1;
+
+
+        const materials = [
+            { name: 'Water', color: '#0000FF' },
+            { name: 'Lava', color: '#FF4500' },
+            { name: 'Brick', color: '#B22222' },
+            { name: 'TNT', color: '#FFD700' },
+        ];
+
+        // --- Sound Effects (Tone.js) ---
+        const synth = new Tone.Synth().toDestination();
+
+        function playSound(type) {
+            if (isMuted) return;
+            let now = Tone.now();
+            switch (type) {
+                case 'place':
+                    synth.triggerAttackRelease("C4", "8n", now);
+                    break;
+                case 'reset':
+                    synth.triggerAttackRelease("G4", "4n", now);
+                    break;
+                case 'explode':
+                    const polySynth = new Tone.PolySynth().toDestination();
+                    polySynth.triggerAttackRelease(["C4", "E4", "G4", "C5"], "16n", now);
+                    break;
+                case 'gameover':
+                    const polySynthGameOver = new Tone.PolySynth().toDestination();
+                    polySynthGameOver.triggerAttackRelease(["C2", "E2", "G2", "Bb2"], "2n", now);
+                    break;
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            if (isMuted) {
+                muteIcon.textContent = '🔇';
+                muteText.textContent = 'Sound Off';
+            } else {
+                muteIcon.textContent = '🔊';
+                muteText.textContent = 'Sound On';
+            }
+        }
+
+        muteButton.addEventListener('click', toggleMute);
+
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < numRows; i++) {
+                for (let j = 0; j < numCols; j++) {
+                    const material = grid[i][j];
+                    if (material !== 0) { // Don't draw empty spaces (air)
+                        ctx.fillStyle = materials[material-1].color;
+                        ctx.fillRect(j * gridSize, i * gridSize, gridSize, gridSize);
+                        ctx.strokeStyle = '#374151'; // Darker border color
+                        ctx.strokeRect(j * gridSize, i * gridSize, gridSize, gridSize);
+                    }
+                }
+            }
+        }
+
+        function updateGrid(x, y) {
+            if (x < 0 || x >= numCols || y < 0 || y >= numRows) return;
+
+            if (grid[y][x] === 0) { // Only place on empty spaces
+                grid[y][x] = selectedMaterial;
+                playSound('place');
+                drawGrid();
+            }
+        }
+
+        function resetGame() {
+            grid = Array(numRows).fill(null).map(() => Array(numCols).fill(0));
+            gameRunning = true;
+            score = 0;
+            drawGrid();
+            playSound('reset');
+            gameOverModal.style.display = "none";
+            message.textContent = "Click to place material. Select material below.";
+        }
+
+        function explodeTNT(x, y) {
+            const explosionRadius = 2; // Radius of the explosion
+            let exploded = false;
+
+            for (let i = y - explosionRadius; i <= y + explosionRadius; i++) {
+                for (let j = x - explosionRadius; j <= x + explosionRadius; j++) {
+                    if (i >= 0 && i < numRows && j >= 0 && j < numCols) {
+                        if (grid[i][j] !== 0) {
+                            grid[i][j] = 0; // Clear the cell
+                            exploded = true;
+                        }
+                    }
+                }
+            }
+            if (exploded){
+                playSound('explode');
+            }
+            return exploded;
+        }
+
+        function simulateStep() {
+            if (!gameRunning) return;
+
+            let updated = false; // Track if any updates were made
+
+            for (let i = numRows - 2; i >= 0; i--) {
+                for (let j = 0; j < numCols; j++) {
+                    const current = grid[i][j];
+                    if (current === 0) continue; // Skip empty cells
+
+                    const below = grid[i + 1][j];
+                    const belowLeft = j > 0 ? grid[i + 1][j - 1] : undefined;
+                    const belowRight = j < numCols - 1 ? grid[i + 1][j + 1] : undefined;
+
+                    if (current === 1) { // Water
+                        if (below === 0) {
+                            grid[i + 1][j] = current;
+                            grid[i][j] = 0;
+                            updated = true;
+                        } else if (belowLeft === 0) {
+                            grid[i + 1][j - 1] = current;
+                            grid[i][j] = 0;
+                            updated = true;
+                        } else if (belowRight === 0) {
+                            grid[i + 1][j + 1] = current;
+                            grid[i][j] = 0;
+                            updated = true;
+                        } else {
+                            // Attempt to spread horizontally
+                            const left = j > 0 ? grid[i][j - 1] : undefined;
+                            const right = j < numCols - 1 ? grid[i][j + 1] : undefined;
+                            if (left === 0) {
+                                grid[i][j - 1] = current;
+                                grid[i][j] = 0;
+                                updated = true;
+                            } else if (right === 0) {
+                                grid[i][j + 1] = current;
+                                grid[i][j] = 0;
+                                updated = true;
+                            }
+                        }
+                    } else if (current === 2) { // Lava
+                        if (below === 0) {
+                            grid[i + 1][j] = current;
+                            grid[i][j] = 0;
+                            updated = true;
+                        } else if (belowLeft === 0) {
+                            grid[i + 1][j - 1] = current;
+                            grid[i][j] = 0;
+                            updated = true;
+                        } else if (belowRight === 0) {
+                            grid[i + 1][j + 1] = current;
+                            grid[i][j] = 0;
+                            updated = true;
+                        }
+                        // Lava interactions - simplified for this example
+                        if (below === 1 || belowLeft === 1 || belowRight === 1) {
+                            grid[i + 1][j] = 0; // Lava evaporates water
+                            if (!isMuted) {
+                              const synth = new Tone.Synth().toDestination();
+                              let now = Tone.now();
+                              synth.triggerAttackRelease("A4", "8n", now);
+                            }
+                            updated = true;
+                            score += 10; // Award points for evaporating water
+                        }
+                    } else if (current === 4) { // TNT
+                        if (below === 1 || belowLeft === 1 || belowRight === 1 || below === 2 || belowLeft === 2 || belowRight === 2) {
+                            grid[i][j] = 0;
+                            updated = explodeTNT(j, i);
+                        }
+                    }
+                }
+            }
+
+            if (score >= 200) { // Example game over condition
+                gameRunning = false;
+                finalScoreDisplay.textContent = score;
+                playSound('gameover');
+                gameOverModal.style.display = "flex";
+                message.textContent = "Game Over!";
+            }
+
+            if (updated) {
+                drawGrid(); // Only draw if something changed
+            }
+        }
+
+        canvas.addEventListener('mousedown', (event) => {
+            isMouseDown = true;
+            previousX = -1; // Reset to ensure first point is handled
+            previousY = -1;
+            handleCanvasClick(event); // Call this to handle initial click
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isMouseDown = false;
+        });
+
+        canvas.addEventListener('mousemove', (event) => {
+            if (isMouseDown) {
+                handleCanvasClick(event);
+            }
+        });
+
+        function handleCanvasClick(event) {
+            if (!gameRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = Math.floor((event.clientX - rect.left) / gridSize);
+            const y = Math.floor((event.clientY - rect.top) / gridSize);
+
+             // Only update if the current cell is different from the previous cell
+            if (x !== previousX || y !== previousY) {
+                updateGrid(x, y);
+                previousX = x;
+                previousY = y;
+            }
+        }
+
+
+        controls.addEventListener('click', (event) => {
+            if (event.target.classList.contains('button')) {
+                document.querySelectorAll('.button').forEach(button => button.classList.remove('active'));
+                event.target.classList.add('active');
+                selectedMaterial = parseInt(event.target.dataset.material);
+            }
+        });
+
+        resetButton.addEventListener('click', resetGame);
+        playAgainButton.addEventListener('click', resetGame);
+
+
+        // Initialize active button
+        document.querySelector(`[data-material="${selectedMaterial}"]`).classList.add('active');
+
+        // Start the game loop
+        setInterval(simulateStep, 200); // Lower interval for slower simulation
+
+        drawGrid(); // Initial draw
+    </script>
+</body>
+</html>
