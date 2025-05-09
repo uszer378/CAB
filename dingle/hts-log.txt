@@ -1,0 +1,13 @@
+HTTrack3.49-5 launched on Fri, 09 May 2025 08:31:19 at http://http://slither.com/io +*.png +*.gif +*.jpg +*.jpeg +*.css +*.js -ad.doubleclick.net/*
+(webhttrack -q -%i -w http://http://slither.com/io -O "/home/uszer378/websites/dingle" -n -%P -N0 -s2 -p7 -D -a -K0 -c4 -%k -A100000 -F "Mozilla/4.5 (compatible; HTTrack 3.0x; Windows 98)" -%F "<!-- Mirrored from %s%s by HTTrack Website Copier/3.x [XR&CO'2014], %s -->" +*.png +*.gif +*.jpg +*.jpeg +*.css +*.js -ad.doubleclick.net/* -%s -%u )
+
+Information, Warnings and Errors reported for this mirror:
+note:	the hts-log.txt file, and hts-cache folder, may contain sensitive information,
+	such as username/password authentication for websites mirrored in this project
+	do not share these files/folders if you want these information to remain private
+
+08:31:21	Warning: 	Found for http://slither.com/robots.txt
+08:31:21	Warning: 	File has moved from http://slither.com/robots.txt to http://slither.com/io
+
+HTTrack Website Copier/3.49-5 mirror complete in 14 seconds : 13 links scanned, 12 files written (579248 bytes overall) [389476 bytes received at 27819 bytes/sec], 260441 bytes transferred using HTTP compression in 2 files, ratio 25%, 2.8 requests per connection
+(No errors, 2 warnings, 0 messages)
