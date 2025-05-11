@@ -1,12 +1,15 @@
+<!DOCTYPE html>
 <html>
-  <head>
-    <link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" />
-    <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
-  </head>
-  <body>
+<head>
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+</head>
+<body>
     <py-script>
-      print("just testing python")
-    </py-script>
-  </body>
-</html>
+        import math
 
+        result = math.sqrt(16)
+        print(f"The square root of 16 is: {result}")
+    </py-script>
+</body>
+</html>
